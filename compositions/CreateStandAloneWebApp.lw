@@ -1,0 +1,73 @@
+composition
+
+import Fugue.AWS.Route53.ResourceRecordSet.Base as ResourceRecordSet
+import Fugue.AWS.Route53.HostedZone as HostedZone
+import Fugue.Core.AWS.Route53 as Route53
+
+import Fugue.AWS.Pattern.Network as Network
+import Fugue.AWS.EC2 as EC2
+import Fugue.AWS.ELB as ELB
+import Fugue.AWS as AWS
+
+hostedZone: HostedZone.external("Z3UKP9OC5NOVGW")
+
+aRecord: ResourceRecordSet.new {
+  name: "foo.example.com",
+  recordType: Route53.A,
+  hostedZone: hostedZone,
+  resourceRecords: [],
+  aliasTarget: Route53.LoadBalancerAliasTarget {
+    loadBalancer: webAppElb,
+    evaluateTargetHealth: True,
+  }
+}
+
+webAppNet: Network.new {
+  name: "webAppNet",
+  cidr: "10.0.0.0/16",
+  region: AWS.Us-east-1,
+  publicSubnets: [
+    (AWS.A, "10.0.0.0/24"),
+    (AWS.B, "10.0.1.0/24"),
+  ],
+  privateSubnets: [],
+  enableDnsSupport: True,
+  enableDnsHostnames: True,
+}
+
+webAppSg: EC2.SecurityGroup.new {
+  description: "WebApp security group",
+  vpc: webAppNet.vpc,
+  ipPermissions: [
+    EC2.IpPermission.ssh(EC2.IpPermission.Target.all),
+    EC2.IpPermission.https(EC2.IpPermission.Target.all),
+    EC2.IpPermission.https(EC2.IpPermission.Target.all),
+  ],
+}
+
+webAppElb: ELB.LoadBalancer.new {
+  loadBalancerName: "webAppElb",
+  subnets: webAppNet.publicSubnets,
+  securityGroups: [webAppSg],
+  listeners: [
+    ELB.Listener.new {
+      protocol: ELB.TCP,
+      loadBalancerPort: 80,
+      instanceProtocol: ELB.TCP,
+      instancePort: 80
+    },
+     ELB.Listener.new {
+      protocol: ELB.TCP,
+      loadBalancerPort: 443,
+      instanceProtocol: ELB.TCP,
+      instancePort: 443
+    },
+  ],
+  healthCheck: ELB.HealthCheck.tcp {
+    port: 80,
+    interval: 5,
+    timeout: 2,
+    unhealthyThreshold: 2,
+    healthyThreshold: 2
+  },
+}

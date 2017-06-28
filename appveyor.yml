@@ -1,0 +1,27 @@
+environment:
+  AWS_ACCESS_KEY_ID:
+    secure: eD7NuBT0GYE+lxrJ7XT7MTNRyVOWa5rdH9gs76i/1xM=
+  AWS_SECRET_ACCESS_KEY:
+    secure: 0YVhX8DDi7leQpcnZ+NbT9hZ1TL2ejQv7gNmlYTCMQbAJB+eTdZur2lw7blNaByz
+  matrix:
+    - FUGUE_RELEASE: "2017.05.23"
+      FUGUE_VERSION: "0.30.9.2059"
+    - FUGUE_RELEASE: "2017.06.12"
+      FUGUE_VERSION: "0.34.11.2229"
+
+install:
+  - set PATH=C:\MinGW\bin;C:\Program Files\Fugue\bin;%PATH%
+  - set LUDWIG_PATH=C:\Program Files\Fugue\lib;%LUDWIG_PATH%
+  - aws s3 cp s3://saboRepo/%FUGUE_RELEASE%/fugue-client-%FUGUE_VERSION%.msi fugue-cli.msi
+  - ps: if($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode ) }
+  - msiexec /i fugue-cli.msi /qn ALLUSERS=1
+  - ps: if($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode ) }
+
+build: off
+
+test_script:
+  - mingw32-make
+  - ps: if($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode ) }
+
+#on_finish:
+#  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
