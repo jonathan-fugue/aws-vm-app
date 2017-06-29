@@ -12,7 +12,7 @@ import Fugue.AWS as AWS
 hostedZone: HostedZone.external("Z3UKP9OC5NOVGW")
 
 aRecord: ResourceRecordSet.new {
-  name: "foo.example.com",
+  name: "www.example.com",
   recordType: Route53.A,
   hostedZone: hostedZone,
   resourceRecords: [],
