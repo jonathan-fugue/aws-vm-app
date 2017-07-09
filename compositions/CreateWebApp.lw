@@ -21,4 +21,7 @@ network: Network.new {
 webApp: WebApp.new {
   name: "Demo",
   subnets: network.publicSubnets,
+  userData:
+    "#! /usr/bin/env bash
+    \apt -y update && apt -y install nginx",
 }

@@ -101,6 +101,7 @@ fun new {
       region: Optional<AWS.Region>,
       keyName: Optional<String>,
       image: Optional<String>,
+      userData: Optional<String>,
       instanceType: Optional<EC2.InstanceType>,
       managementSgs: Optional<List<EC2.SecurityGroup>>,
       withRDS: Optional<Bool>,
@@ -118,8 +119,9 @@ fun new {
   let _region: Optional.unpack(_vpc.(EC2.Vpc).region, region)
   let _keyName:              Optional.unpack(name, keyName)
   let _image:                Optional.unpack(amiForRegion(_region), image)
+  let _userData:             Optional.unpack(" ", userData)
   let _instanceType:         Optional.unpack(EC2.T2_micro, instanceType)
-  let _withRDS:                Optional.unpack(False, withRDS)
+  let _withRDS:              Optional.unpack(False, withRDS)
   let _dbEngine:             Optional.unpack(RDS.MySQL, dbEngine)
   let _dbInstanceClass:      Optional.unpack(RDS.DB_T2_MICRO, dbInstanceClass)
   let _dbStorageType:        Optional.unpack(EC2.Standard, dbStorageType)
@@ -196,7 +198,7 @@ fun new {
     instanceType: _instanceType,
     associatePublicIpAddress: True,
     iamInstanceProfile: profile,
-    userData: " ", 
+    userData: _userData, 
     blockDeviceMappings: [
       EC2.InstanceBlockDeviceMapping.new {
         deviceName: "/dev/sda1",
