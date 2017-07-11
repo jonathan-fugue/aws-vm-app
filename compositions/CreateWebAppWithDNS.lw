@@ -26,8 +26,8 @@ webApp: WebApp.new {
   name: "Demo",
   subnets: network.publicSubnets,
   userData:
-    "#! /usr/bin/env bash
-    \apt -y update && apt -y install nginx",
+    "#cloud-config
+    \packages: nginx",
 }
 
 webAppR53Alias: ResourceRecordSet.new {

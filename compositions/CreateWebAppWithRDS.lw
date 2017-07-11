@@ -22,4 +22,7 @@ webApp: WebApp.new {
   name: "Demo",
   subnets: network.publicSubnets,
   withRDS: True,
+  userData:
+    "#cloud-config
+    \packages: nginx",
 }
