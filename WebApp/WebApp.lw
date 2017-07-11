@@ -199,19 +199,6 @@ fun new {
     associatePublicIpAddress: True,
     iamInstanceProfile: profile,
     userData: _userData, 
-    blockDeviceMappings: [
-      EC2.InstanceBlockDeviceMapping.new {
-        deviceName: "/dev/sda1",
-        ebs: EC2.EbsInstanceBlockDevice.new {
-          volume: EC2.Volume.new {
-            volumeType: EC2.Standard,
-            size: 10,
-            availabilityZone: AWS.A,
-          },
-          deleteOnTermination: True,
-        },
-      }
-    ],
   }
   let asg: AutoScaling.AutoScalingGroup.new {
     subnets: subnets,
