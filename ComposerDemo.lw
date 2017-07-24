@@ -3,12 +3,13 @@ composition
 import WebApp.WebApp as WebApp
 
 import Fugue.AWS.Pattern.Network as Network
+import Fugue.AWS.ELB as ELB
 import Fugue.AWS as AWS
 
 network: Network.new {
   name: "public network",
   cidr: "10.0.0.0/16",
-  region: AWS.Us-east-1,
+  region: AWS.Us-west-2,
   publicSubnets: [
     (AWS.A, "10.0.0.0/24"),
     (AWS.B, "10.0.1.0/24"),
@@ -23,7 +24,12 @@ webApp: WebApp.new {
   subnets: network.publicSubnets,
   withRDS: False,
   withDDB: False,
-  userData:
-    "#cloud-config
-    \packages: nginx",
+  image: "ami-b7b366d7", 
+  healthCheck: ELB.HealthCheck.tcp {
+    port: 3000,
+    interval: 15,
+    timeout: 3,
+    unhealthyThreshold: 3,
+    healthyThreshold: 3
+  },
 }

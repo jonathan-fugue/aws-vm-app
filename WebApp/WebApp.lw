@@ -104,6 +104,8 @@ fun new {
       keyName: Optional<String>,
       image: Optional<String>,
       userData: Optional<String>,
+      healthCheck: Optional<ELB.HealthCheck>,
+      ipPermissions: Optional<List<EC2.IpPermission>>,
       instanceType: Optional<EC2.InstanceType>,
       managementSgs: Optional<List<EC2.SecurityGroup>>,
       withRDS: Optional<Bool>,
@@ -126,6 +128,15 @@ fun new {
   let _keyName:              Optional.unpack(name, keyName)
   let _image:                Optional.unpack(amiForRegion(_region), image)
   let _userData:             Optional.unpack(" ", userData)
+  let _defaultHealthCheck: ELB.HealthCheck.tcp {
+    port: 80,
+    interval: 5,
+    timeout: 2,
+    unhealthyThreshold: 2,
+    healthyThreshold: 2,
+  }
+  let _healthCheck:          Optional.unpack(_defaultHealthCheck, healthCheck)  
+  let _defaultIpPermissions: 
   let _instanceType:         Optional.unpack(EC2.T2_micro, instanceType)
   let _withRDS:              Optional.unpack(False, withRDS)
   let _dbEngine:             Optional.unpack(RDS.MySQL, dbEngine)
@@ -188,13 +199,7 @@ fun new {
         instanceProtocol: ELB.TCP,
       }
     ],
-    healthCheck: ELB.HealthCheck.tcp {
-      port: 80,
-      interval: 5,
-      timeout: 2,
-      unhealthyThreshold: 2,
-      healthyThreshold: 2,
-    },
+    healthCheck: _healthCheck,
     subnets: subnets,
     securityGroups: [sgs.elbSg],
     tags: List.concat([AWS.tag("Name", name)], _extraTags),
