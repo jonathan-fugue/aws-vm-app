@@ -156,7 +156,7 @@ fun new {
       "Statement": [
         {
           "Effect": "Allow",
-          "Action": "*",
+          "Action": ["*"],
           "Resource": "*"
         }
       ]
