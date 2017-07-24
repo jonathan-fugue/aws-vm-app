@@ -8,6 +8,7 @@ import Fugue.AWS.EC2 as EC2
 import Fugue.AWS.ELB as ELB
 import Fugue.AWS.IAM as IAM
 import Fugue.AWS.RDS as RDS
+import Fugue.AWS.DynamoDB as DynamoDB
 import Fugue.AWS as AWS
 import Fugue.Core.Vars as Vars
 
@@ -16,7 +17,8 @@ type WebApp:
     elb: ELB.LoadBalancer
     asg: AutoScaling.AutoScalingGroup
     sgs: WebAppSecurityGroups
-    db: Optional<RDS.DBInstance>
+    rds: Optional<RDS.DBInstance>
+    ddb: Optional<DynamoDB.Table>
 
 type WebAppSecurityGroups:
   elbSg: EC2.SecurityGroup
@@ -113,6 +115,10 @@ fun new {
       dbName: Optional<String>,
       dbMasterUsername: Optional<String>,
       dbMasterUserPassword: Optional<Vars.Password>,
+      withDDB: Optional<Bool>,
+      ddbProvisionedReadThroughput: Optional<Int>,
+      ddbProvisionedWriteThroughput: Optional<Int>,
+      dbAllocatedStorage: Optional<Int>,
       tags: Optional<List<AWS.Tag>>
     } -> WebApp:
   let _vpc: Optional.unpack(List.index(subnets,0).(EC2.Subnet).vpc, vpc)
@@ -131,6 +137,9 @@ fun new {
   let _dbMasterUsername:     Optional.unpack("root", dbMasterUsername)
   let _dbMasterUserPassword: Optional.unpack(Vars.VarsKey({key: "/rds/password"}), dbMasterUserPassword)
   let _managementSgs:        Optional.unpack([], managementSgs)
+  let _withDDB:              Optional.unpack(False, withDDB)
+  let _ddbProvisionedReadThroughput:  Optional.unpack(10, ddbProvisionedReadThroughput)
+  let _ddbProvisionedWriteThroughput: Optional.unpack(10, ddbProvisionedWriteThroughput)
   let _extraTags:            Optional.unpack([], tags)
 
   let sgs: makeWebAppSgs {
@@ -216,7 +225,7 @@ fun new {
     ]
   }
 
-  let db:
+  let rds:
     if _withRDS then
       let subnetGroup: RDS.DBSubnetGroup.new {
         name: name,
@@ -243,9 +252,26 @@ fun new {
       })
     else
       None
+
+  let ddb:
+    if _withDDB then
+      Optional(DynamoDB.Table.new {
+        name: name ++ "-table",
+        attributes: {"PropertyName": DynamoDB.S},
+        schema: {"PropertyName": DynamoDB.HASH},
+        provisionedThroughput: {
+          read: _ddbProvisionedReadThroughput,
+          write: _ddbProvisionedWriteThroughput ,
+        },
+        region: _region,
+      })
+    else
+      None
+
   WebApp {
     sgs: sgs,
     elb: elb,
     asg: asg,
-    db: db,
+    rds: rds,
+    ddb: ddb,
   }
