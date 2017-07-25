@@ -48,10 +48,11 @@ fun amiForRegion(region: AWS.Region) -> String:
 fun makeWebAppSgs {
       name: String,
       vpc: EC2.Vpc,
-      withRDS: Optional<Bool>,
+      healthCheck: ELB.HealthCheck,
+      ipPermissions: List<EC2.IpPermission>,
+      withRDS: Bool,
       extraTags: List<AWS.Tag>
     } -> WebAppSecurityGroups:
-  let _withRDS: Optional.unpack(False, withRDS)
   let elbSg: EC2.SecurityGroup.new {
     description: name ++ "-elb-sg",
     ipPermissions: [
@@ -64,15 +65,14 @@ fun makeWebAppSgs {
   let asgSg: EC2.SecurityGroup.new {
     description: name ++ "-asg-sg",
     ipPermissions: [
+      EC2.IpPermission.tcp(healthCheck.(ELB.HealthCheck).port, EC2.IpPermission.Target.securityGroup(elbSg)),
       EC2.IpPermission.ssh(EC2.IpPermission.Target.securityGroups([clientSg])),
-      EC2.IpPermission.http(EC2.IpPermission.Target.securityGroups([elbSg])),
-      EC2.IpPermission.https(EC2.IpPermission.Target.securityGroups([elbSg])),
     ],
     tags: List.concat([AWS.tag("Name", name ++ "-asg-sg")], extraTags),
     vpc: vpc,
   }
   let rdsSg:
-    if _withRDS then
+    if withRDS then
       Optional(EC2.SecurityGroup.new {
         description: name ++ "-rds-sg",
         ipPermissions: [
@@ -136,7 +136,7 @@ fun new {
     healthyThreshold: 2,
   }
   let _healthCheck:          Optional.unpack(_defaultHealthCheck, healthCheck)  
-  let _defaultIpPermissions: 
+  let _ipPermissions:        Optional.unpack([], ipPermissions)
   let _instanceType:         Optional.unpack(EC2.T2_micro, instanceType)
   let _withRDS:              Optional.unpack(False, withRDS)
   let _dbEngine:             Optional.unpack(RDS.MySQL, dbEngine)
@@ -156,6 +156,8 @@ fun new {
   let sgs: makeWebAppSgs {
     name: name,
     vpc: _vpc,
+    healthCheck: _healthCheck,
+    ipPermissions: _ipPermissions,
     withRDS: _withRDS,
     extraTags: _extraTags,
   }
