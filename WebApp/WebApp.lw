@@ -26,17 +26,6 @@ type WebAppSecurityGroups:
   rdsSg: Optional<EC2.SecurityGroup>
   clientSg: EC2.SecurityGroup
 
-validate validateInstanceType
-
-fun validateInstanceType(t: WebApp) -> Validation:
-  let lc: t.WebApp.asg.(AutoScaling.AutoScalingGroup).launchConfiguration
-  let instanceType: lc.(AutoScaling.LaunchConfiguration).instanceType
-  case instanceType of
-    | EC2.T2_micro  -> Validation.success
-    | EC2.T2_small  -> Validation.success
-    | EC2.T2_medium -> Validation.success
-    | _             -> Validation.failure("Must be a valid EC2 instance type.")
-
 fun amiForRegion(region: AWS.Region) -> String:
   case region of
     | AWS.Us-east-1 -> "ami-a60c23b0"
@@ -64,9 +53,9 @@ fun makeWebAppSgs {
   let asgSg: EC2.SecurityGroup.new {
     description: name ++ "-asg-sg",
     ipPermissions: [
-      EC2.IpPermission.ssh(EC2.IpPermission.Target.securityGroups([clientSg])),
       EC2.IpPermission.http(EC2.IpPermission.Target.securityGroups([elbSg])),
       EC2.IpPermission.https(EC2.IpPermission.Target.securityGroups([elbSg])),
+      EC2.IpPermission.ssh(EC2.IpPermission.Target.securityGroups([clientSg]))
     ],
     tags: List.concat([AWS.tag("Name", name ++ "-asg-sg")], extraTags),
     vpc: vpc,
@@ -76,6 +65,7 @@ fun makeWebAppSgs {
       Optional(EC2.SecurityGroup.new {
         description: name ++ "-rds-sg",
         ipPermissions: [
+          EC2.IpPermission.mysql(EC2.IpPermission.Target.securityGroups([asgSg])),
           EC2.IpPermission.mysql(EC2.IpPermission.Target.securityGroups([clientSg]))
         ],
         tags: List.concat([AWS.tag("Name", name ++ "-rds-sg")], extraTags),
@@ -94,6 +84,89 @@ fun makeWebAppSgs {
     asgSg: asgSg,
     rdsSg: rdsSg,
     clientSg: clientSg,
+  }
+
+fun ec2Policy(name: String, region: String) -> IAM.Policy:
+  IAM.Policy.new {
+    policyName: name ++ "-ec2-policy",
+    policyDocument:
+      Template.render {
+        data: {name: name, region: region},
+        template:
+          '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["ec2:*"],
+                "Resource": "*"
+              }
+            ]
+          }'
+      },
+  }
+
+fun ddbPolicy(name: String, region: String) -> IAM.Policy:
+  IAM.Policy.new {
+    policyName: name ++ "-ddb-policy",
+    policyDocument:
+      Template.render {
+        data: {name: name, region: region},
+        template: 
+          '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:*"],
+                "Resource": "arn:aws:dynamodb:{{region}}:*:table/{{name}}-table"
+              }
+            ]
+          }'
+      },
+  }
+
+fun rdsPolicy(name: String, region: String) -> IAM.Policy:
+  IAM.Policy.new {
+    policyName: name ++ "-rds-policy",
+    policyDocument:
+      Template.render {
+        data: {name: name, region: region},
+        template:
+          '{
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["rds-db:connect*"],
+                "Resource": "arn:aws:rds:{{region}}:*:db:{{name}}-dbInstance"
+              }
+            ]
+          }'
+      },
+  }
+
+fun makeWebAppIamProfile {
+      name: String,
+      region: String,
+      withDDB: Bool,
+      withRDS: Bool,
+    } -> IAM.InstanceProfile:
+
+  let webAppPolicies: [ 
+    x._0 for x in [(ec2Policy(name,region), True),(ddbPolicy(name,region), withDDB),(rdsPolicy(name,region), withRDS)] if x._1
+  ]
+
+  let webAppRole: 
+    IAM.Role.new {
+      roleName: name ++ "-role",
+      rolePolicies: webAppPolicies,
+      assumeRolePolicyDocument: IAM.Policy.AssumeRole.ec2,
+    }
+
+  IAM.InstanceProfile.new {
+    instanceProfileName: name ++ "-profile",
+    roles: [webAppRole],
   }
 
 fun new {
@@ -149,27 +222,11 @@ fun new {
     extraTags: _extraTags,
   }
 
-  let policy: IAM.Policy.new {
-    policyName: name ++ "-policy",
-    policyDocument: '{
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": ["*"],
-          "Resource": "*"
-        }
-      ]
-    }',
-  }
-  let role: IAM.Role.new {
-    roleName: name ++ "-role",
-    rolePolicies: [policy],
-    assumeRolePolicyDocument: IAM.Policy.AssumeRole.ec2,
-  }
-  let profile: IAM.InstanceProfile.new {
-    instanceProfileName: name ++ "-profile",
-    roles: [role],
+  let profile: makeWebAppIamProfile {
+    name: name,
+    region: AWS.Region.toString(_region),
+    withDDB: _withDDB,
+    withRDS: _withRDS,
   }
 
   let elb:  ELB.LoadBalancer.new {

@@ -21,9 +21,5 @@ network: Network.new {
 webApp: WebApp.new {
   name: "Demo",
   subnets: network.publicSubnets,
-  withDDB: True,
-  withRDS: True,
-  userData:
-    "#cloud-config
-    \packages: nginx",
+  image: "ami-40aecb57",
 }

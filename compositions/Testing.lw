@@ -1,0 +1,51 @@
+composition
+
+import WebApp.WebApp as WebApp
+
+import Fugue.AWS.Pattern.Network as Network
+import Fugue.AWS as AWS
+
+network: Network.new {
+  name: "public network",
+  cidr: "10.0.0.0/16",
+  region: AWS.Us-east-1,
+  publicSubnets: [
+    (AWS.A, "10.0.0.0/24"),
+    (AWS.B, "10.0.1.0/24"),
+  ],
+  privateSubnets: [],
+  enableDnsSupport: True,
+  enableDnsHostnames: True,
+}
+
+webAppA: WebApp.new {
+  name: "WebAppA",
+  keyName: "Demo",
+  subnets: network.publicSubnets,
+  image: "ami-40aecb57",
+  withRDS: True
+}
+
+webAppB: WebApp.new {
+  name: "WebAppB",
+  keyName: "Demo",
+  subnets: network.publicSubnets,
+  image: "ami-40aecb57",
+  withDDB: True
+}
+
+webAppC: WebApp.new {
+  name: "WebAppC",
+  keyName: "Demo",
+  subnets: network.publicSubnets,
+  image: "ami-40aecb57",
+  withRDS: True
+}
+
+webAppD: WebApp.new {
+  name: "WebAppD",
+  keyName: "Demo",
+  subnets: network.publicSubnets,
+  image: "ami-40aecb57",
+  withDDB: True
+}
