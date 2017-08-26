@@ -37,10 +37,9 @@ fun amiForRegion(region: AWS.Region) -> String:
 fun makeWebAppSgs {
       name: String,
       vpc: EC2.Vpc,
-      withRDS: Optional<Bool>,
+      withRDS: Bool,
       extraTags: List<AWS.Tag>
     } -> WebAppSecurityGroups:
-  let _withRDS: Optional.unpack(False, withRDS)
   let elbSg: EC2.SecurityGroup.new {
     description: name ++ "-elb-sg",
     ipPermissions: [
@@ -61,7 +60,7 @@ fun makeWebAppSgs {
     vpc: vpc,
   }
   let rdsSg:
-    if _withRDS then
+    if withRDS then
       Optional(EC2.SecurityGroup.new {
         description: name ++ "-rds-sg",
         ipPermissions: [
@@ -152,18 +151,19 @@ fun makeWebAppIamProfile {
       withDDB: Bool,
       withRDS: Bool,
     } -> IAM.InstanceProfile:
-
   let webAppPolicies: [ 
-    x._0 for x in [(ec2Policy(name,region), True),(ddbPolicy(name,region), withDDB),(rdsPolicy(name,region), withRDS)] if x._1
+    x._0 for x in [
+      (ec2Policy(name,region), True),
+      (ddbPolicy(name,region), withDDB),
+      (rdsPolicy(name,region), withRDS)
+    ] if x._1
   ]
-
   let webAppRole: 
     IAM.Role.new {
       roleName: name ++ "-role",
       rolePolicies: webAppPolicies,
       assumeRolePolicyDocument: IAM.Policy.AssumeRole.ec2,
     }
-
   IAM.InstanceProfile.new {
     instanceProfileName: name ++ "-profile",
     roles: [webAppRole],
@@ -290,7 +290,6 @@ fun new {
         subnets: subnets,
         tags: List.concat([AWS.tag("Name", name)], _extraTags),
       }
-      let _rdsSg: Optional.unpackOrError(sgs.rdsSg, "Fail")
       Optional(RDS.DBInstance.new {
         dbName: _dbName,
         dbInstanceIdentifier: name ++ "-dbInstance",
@@ -298,7 +297,7 @@ fun new {
         engine: _dbEngine,
         masterUsername: _dbMasterUsername,
         allocatedStorage: _dbAllocatedStorage,
-        securityGroups: [_rdsSg],
+        securityGroups: [Optional.unpackOrError(sgs.rdsSg, "Fail")], # FIXME 
         availabilityZone: None,
         dbSubnetGroup: subnetGroup,
         multiAZ: _dbMultiAZ,
