@@ -152,11 +152,11 @@ fun makeWebAppIamProfile {
       withRDS: Bool,
     } -> IAM.InstanceProfile:
   let webAppPolicies: [ 
-    x._0 for x in [
+    policy for (policy, enable) in [
       (ec2Policy(name,region), True),
       (ddbPolicy(name,region), withDDB),
       (rdsPolicy(name,region), withRDS)
-    ] if x._1
+    ] if enable
   ]
   let webAppRole: 
     IAM.Role.new {
@@ -256,7 +256,6 @@ fun new {
     securityGroups: [sgs.elbSg],
     tags: List.concat([AWS.tag("Name", name)], _extraTags),
   }
-
   let lc: AutoScaling.LaunchConfiguration.new {
     image: _image,
     securityGroups: List.concat([sgs.asgSg], _managementSgs),
