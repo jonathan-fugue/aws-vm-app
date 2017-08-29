@@ -289,6 +289,9 @@ fun new {
         subnets: subnets,
         tags: List.concat([AWS.tag("Name", name)], _extraTags),
       }
+      let securityGroups: case sgs.rdsSg of
+        | None        -> []
+        | Optional sg -> [sg]
       Optional(RDS.DBInstance.new {
         dbName: _dbName,
         dbInstanceIdentifier: name ++ "-dbInstance",
@@ -296,7 +299,7 @@ fun new {
         engine: _dbEngine,
         masterUsername: _dbMasterUsername,
         allocatedStorage: _dbAllocatedStorage,
-        securityGroups: [Optional.unpackOrError(sgs.rdsSg, "Fail")], # FIXME 
+        securityGroups: securityGroups,
         availabilityZone: None,
         dbSubnetGroup: subnetGroup,
         multiAZ: _dbMultiAZ,
