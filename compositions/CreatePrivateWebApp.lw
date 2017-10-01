@@ -13,15 +13,19 @@ network: Network.new {
     (AWS.A, "10.0.0.0/24"),
     (AWS.B, "10.0.1.0/24"),
   ],
-  privateSubnets: [],
+  privateSubnets: [
+    (AWS.A, "10.0.10.0/24"),
+    (AWS.B, "10.0.11.0/24"),
+  ],
   enableDnsSupport: True,
   enableDnsHostnames: True,
+  enableNat: True,
 }
 
 webApp: WebApp.new {
   name: "Demo",
-  subnets: network.publicSubnets,
-  withDDB: False,
+  subnets: network.privateSubnets,
+  withDDB: True,
   withRDS: True,
   userData:
     "#cloud-config
