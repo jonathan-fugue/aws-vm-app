@@ -1,6 +1,6 @@
 export
-  type WebApp
-  type WebAppSecurityGroups
+  type VMApp
+  type VMAppSecurityGroups
   new
 
 import Fugue.AWS.AutoScaling as AutoScaling
@@ -12,15 +12,15 @@ import Fugue.AWS.DynamoDB as DynamoDB
 import Fugue.AWS as AWS
 import Fugue.Core.Vars as Vars
 
-type WebApp:
-  | WebApp
+type VMApp:
+  | VMApp
     elb: ELB.LoadBalancer
     asg: AutoScaling.AutoScalingGroup
-    sgs: WebAppSecurityGroups
+    sgs: VMAppSecurityGroups
     rds: Optional<RDS.DBInstance>
     ddb: Optional<DynamoDB.Table>
 
-type WebAppSecurityGroups:
+type VMAppSecurityGroups:
   elbSg: EC2.SecurityGroup
   asgSg: EC2.SecurityGroup
   rdsSg: Optional<EC2.SecurityGroup>
@@ -34,12 +34,12 @@ fun amiForRegion(region: AWS.Region) -> String:
     | AWS.Eu-west-1 -> "ami-af455dc9"
     | _ -> AWS.Region.toString(region) ++ " is not supported."
 
-fun makeWebAppSgs {
+fun makeVMAppSgs {
       name: String,
       vpc: EC2.Vpc,
       withRDS: Bool,
       extraTags: List<AWS.Tag>
-    } -> WebAppSecurityGroups:
+    } -> VMAppSecurityGroups:
   let elbSg: EC2.SecurityGroup.new {
     description: name ++ "-elb-sg",
     ipPermissions: [
@@ -145,7 +145,7 @@ fun rdsPolicy(name: String, region: String) -> IAM.Policy:
       },
   }
 
-fun makeWebAppIamProfile {
+fun makeVMAppIamProfile {
       name: String,
       region: String,
       withDDB: Bool,
@@ -193,7 +193,7 @@ fun new {
       ddbProvisionedWriteThroughput: Optional<Int>,
       dbAllocatedStorage: Optional<Int>,
       tags: Optional<List<AWS.Tag>>
-    } -> WebApp:
+    } -> VMApp:
   let _vpc: Optional.unpack(List.index(subnets,0).(EC2.Subnet).vpc, vpc)
   let _region: Optional.unpack(_vpc.(EC2.Vpc).region, region)
   let _keyName:              Optional.unpack(name, keyName)
@@ -215,14 +215,14 @@ fun new {
   let _ddbProvisionedWriteThroughput: Optional.unpack(10, ddbProvisionedWriteThroughput)
   let _extraTags:            Optional.unpack([], tags)
 
-  let sgs: makeWebAppSgs {
+  let sgs: makeVMAppSgs {
     name: name,
     vpc: _vpc,
     withRDS: _withRDS,
     extraTags: _extraTags,
   }
 
-  let profile: makeWebAppIamProfile {
+  let profile: makeVMAppIamProfile {
     name: name,
     region: AWS.Region.toString(_region),
     withDDB: _withDDB,
@@ -326,7 +326,7 @@ fun new {
     else
       None
 
-  WebApp {
+  VMApp {
     sgs: sgs,
     elb: elb,
     asg: asg,
